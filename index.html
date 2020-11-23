@@ -1,0 +1,29 @@
+@main[]
+<html>
+^if(!def $cookie:uniqUser){
+	$session_key[^math:uuid[]]
+	$cookie:uniqUser[$.value[$session_key] $.expires($session_timeout)]
+}
+
+$sql[insert into _log_user (metod, ip_adress,  server_name,  uri_string,  queri_string, rec_body, doc_root,  date_ins,  session_key, user_agent, cookie)
+    values ('$request:method','$env:REMOTE_ADDR','$env:SERVER_NAME','$request:uri','$request:query','$request:body','$request:document-root',NOW(),'^gen_session_key[$cookie:uniqUser]','$env:HTTP_USER_AGENT', '$cookie:uniqUser')]
+^dbv[$sql]
+
+session timeout - $session_timeout day(s)<br>
+current cookie - $cookie:uniqUser <br>
+current session - ^gen_session_key[$cookie:uniqUser] <br>
+$sql[SELECT COUNT(_log_user.session_key) AS count FROM _log_user WHERE _log_user.session_key = '^gen_session_key[$cookie:uniqUser]']
+count requests current session - ^dbi[$sql] <br>
+
+$sql[SELECT COUNT(*) AS count, ip_adress,cookie,session_key,user_agent FROM _log_user GROUP BY _log_user.session_key ORDER BY _log_user.id]
+$list[^dbq[$sql]]
+the number of unique users in the last $session_timeout day(s) - ^list.count[] <br>
+^view_tab[$list]
+
+history of requests for the current session:
+$sql[SELECT * FROM _log_user WHERE _log_user.session_key = '^gen_session_key[$cookie:uniqUser]']
+$list[^dbq[$sql]]
+^view_tab[$list]
+
+</html>
+
